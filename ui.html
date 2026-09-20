@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Voiceprint</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --fg: #1a1a1a;
+        --muted: #666;
+        --border: #e0e0e0;
+        --bg-soft: #f7f7f9;
+        --accent: #7b8cff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 14px 16px 16px;
+        font-family:
+          Inter,
+          -apple-system,
+          system-ui,
+          sans-serif;
+        font-size: 12px;
+        color: var(--fg);
+      }
+      h1 {
+        font-size: 13px;
+        margin: 0 0 4px;
+      }
+      .hint {
+        color: var(--muted);
+        margin: 0 0 10px;
+      }
+      .preview {
+        position: relative;
+        width: 100%;
+        height: 88px;
+        background: var(--bg-soft);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        margin-bottom: 10px;
+        overflow: hidden;
+      }
+      .preview canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .selection-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        margin-bottom: 12px;
+      }
+      .selection-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .selection-info .name {
+        color: var(--fg);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .selection-info .meta {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .selection-info.empty .name {
+        color: var(--muted);
+      }
+      .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+      }
+      .toggle input {
+        accent-color: var(--accent);
+      }
+      .toggle.disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .field {
+        margin-bottom: 10px;
+      }
+      .field.locked {
+        opacity: 0.55;
+      }
+      .field-head {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 4px;
+      }
+      .field-head label {
+        color: var(--muted);
+      }
+      .field-head .val {
+        font-variant-numeric: tabular-nums;
+        color: var(--fg);
+      }
+      .field.locked .val::after {
+        content: ' · 自动';
+        color: var(--accent);
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      input[type='range'] {
+        flex: 1;
+        accent-color: var(--accent);
+      }
+      input[type='number'] {
+        width: 56px;
+        height: 24px;
+        padding: 0 6px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 12px;
+        text-align: right;
+      }
+      input[type='color'] {
+        width: 40px;
+        height: 26px;
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: none;
+        cursor: pointer;
+      }
+      .seed-input {
+        flex: 1;
+        height: 26px;
+        padding: 0 8px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+      }
+      .icon-btn {
+        width: 28px;
+        height: 28px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: #fff;
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1;
+      }
+      .icon-btn:hover {
+        border-color: var(--accent);
+      }
+      hr {
+        border: 0;
+        border-top: 1px solid var(--border);
+        margin: 12px 0;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+      }
+      button.action {
+        flex: 1;
+        height: 32px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      button.primary {
+        background: var(--accent);
+        color: #fff;
+      }
+      button.primary:hover {
+        filter: brightness(0.95);
+      }
+      button.ghost {
+        background: transparent;
+        border-color: var(--border);
+      }
+      .status {
+        margin-top: 8px;
+        min-height: 14px;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Voiceprint</h1>
+    <p class="hint">随机生成一段声纹。参数变化时即时预览。</p>
+
+    <div class="preview">
+      <canvas id="preview"></canvas>
+    </div>
+
+    <div class="selection-bar">
+      <div class="selection-info empty" id="selInfo">
+        <span class="name">未选中任何节点</span>
+        <span class="meta">选中一个 Frame 后可跟随其宽度</span>
+      </div>
+      <label class="toggle disabled" id="adaptiveToggle">
+        <input type="checkbox" id="adaptive" disabled />
+        跟随宽度
+      </label>
+    </div>
+
+    <div class="field" data-key="count">
+      <div class="field-head">
+        <label>条数</label><span class="val">60</span>
+      </div>
+      <div class="row">
+        <input type="range" min="4" max="300" step="1" value="60" />
+        <input type="number" min="4" max="500" value="60" />
+      </div>
+    </div>
+
+    <div class="field" data-key="barWidth">
+      <div class="field-head">
+        <label>条宽 (px)</label><span class="val">4</span>
+      </div>
+      <div class="row">
+        <input type="range" min="1" max="20" step="1" value="4" />
+        <input type="number" min="1" max="40" value="4" />
+      </div>
+    </div>
+
+    <div class="field" data-key="gap">
+      <div class="field-head">
+        <label>间距 (px)</label><span class="val">4</span>
+      </div>
+      <div class="row">
+        <input type="range" min="0" max="20" step="1" value="4" />
+        <input type="number" min="0" max="40" value="4" />
+      </div>
+    </div>
+
+    <div class="field" data-key="maxHeight">
+      <div class="field-head">
+        <label>最大高度 (px)</label><span class="val">200</span>
+      </div>
+      <div class="row">
+        <input type="range" min="20" max="500" step="1" value="200" />
+        <input type="number" min="20" max="1000" value="200" />
+      </div>
+    </div>
+
+    <div class="field" data-key="peaks">
+      <div class="field-head">
+        <label>波峰数量</label><span class="val">5</span>
+      </div>
+      <div class="row">
+        <input type="range" min="0" max="15" step="1" value="5" />
+        <input type="number" min="0" max="20" value="5" />
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-head">
+        <label>颜色</label><span class="val" id="colorLabel">#7B8CFF</span>
+      </div>
+      <div class="row">
+        <input type="color" id="color" value="#7b8cff" />
+        <input type="text" class="seed-input" id="colorText" value="#7B8CFF" />
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-head">
+        <label>随机种子</label><span class="val" id="seedLabel">auto</span>
+      </div>
+      <div class="row">
+        <input
+          class="seed-input"
+          id="seed"
+          type="text"
+          placeholder="留空则每次随机"
+        />
+        <button class="icon-btn" id="dice" title="换一个种子">🎲</button>
+      </div>
+    </div>
+
+    <hr />
+
+    <div class="actions">
+      <button class="action primary" id="generate">生成到画布</button>
+      <button class="action ghost" id="close">关闭</button>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <script>
+      // ---------------- 与 code.js 保持一致的算法 ----------------
+      // 修改这里的算法时，务必同步修改 code.js 里的 buildAmplitudes / mulberry32。
+      function mulberry32(a) {
+        let t = a >>> 0;
+        return function () {
+          t = (t + 0x6d2b79f5) >>> 0;
+          let x = t;
+          x = Math.imul(x ^ (x >>> 15), x | 1);
+          x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+          return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+      function buildAmplitudes(count, peaks, rng) {
+        const amps = new Array(count);
+        // 1) 多频段平滑噪声（低频包络 + 中频音节 + 高频细节）
+        const layers = [
+          { stride: Math.max(6, Math.floor(count / 8)), weight: 0.55 },
+          { stride: Math.max(3, Math.floor(count / 18)), weight: 0.3 },
+          { stride: Math.max(2, Math.floor(count / 40)), weight: 0.15 },
+        ];
+        const smoothstep = (t) => t * t * (3 - 2 * t);
+        const layerKnots = layers.map(({ stride }) => {
+          const kc = Math.ceil(count / stride) + 2;
+          const arr = new Array(kc);
+          for (let i = 0; i < kc; i++) arr[i] = rng();
+          return arr;
+        });
+        const sampleLayer = (knots, stride, i) => {
+          const t = i / stride;
+          const k0 = Math.floor(t);
+          const f = t - k0;
+          return (
+            knots[k0] * (1 - smoothstep(f)) + knots[k0 + 1] * smoothstep(f)
+          );
+        };
+        for (let i = 0; i < count; i++) {
+          let v = 0;
+          for (let j = 0; j < layers.length; j++) {
+            v +=
+              sampleLayer(layerKnots[j], layers[j].stride, i) *
+              layers[j].weight;
+          }
+          amps[i] = 0.06 + v * 0.29;
+        }
+        // 2) 峰位、峰高、峰宽都独立随机
+        if (peaks > 0) {
+          const margin = Math.max(1, Math.floor(count * 0.05));
+          const baseSigma = Math.max(1.4, count / (peaks * 8));
+          const positions = [];
+          for (let k = 0; k < peaks; k++) {
+            const idx =
+              margin + Math.floor(rng() * Math.max(1, count - margin * 2));
+            const amp = 0.5 + Math.pow(rng(), 2) * 0.45;
+            const sigma = baseSigma * (0.6 + rng() * 0.9);
+            positions.push({ idx, amp, sigma });
+          }
+          // 3) Screen blend 叠加
+          for (let i = 0; i < count; i++) {
+            let v = amps[i];
+            for (const p of positions) {
+              const d = i - p.idx;
+              const c = p.amp * Math.exp(-(d * d) / (2 * p.sigma * p.sigma));
+              v = v + c * (1 - v);
+            }
+            amps[i] = v;
+          }
+        }
+        // 4) 每根条独立乘性抖动（模拟采样级毛刺）
+        for (let i = 0; i < count; i++) {
+          const jitter = 0.85 + rng() * 0.3;
+          amps[i] = Math.min(1, amps[i] * jitter);
+        }
+        return amps;
+      }
+
+      // ---------------- 状态 ----------------
+      // previewSeed 让预览稳定：拖动参数时波形形状不变，只有 count 或 seed 换才会明显变。
+      let previewSeed = (Math.random() * 0xffffffff) >>> 0;
+      let selectedNode = null;
+      let adaptive = false;
+
+      // ---------------- DOM 引用 ----------------
+      const canvas = document.getElementById('preview');
+      const ctx = canvas.getContext('2d');
+      const selInfo = document.getElementById('selInfo');
+      const adaptiveToggle = document.getElementById('adaptiveToggle');
+      const adaptiveEl = document.getElementById('adaptive');
+      const colorEl = document.getElementById('color');
+      const colorText = document.getElementById('colorText');
+      const colorLabel = document.getElementById('colorLabel');
+      const seedEl = document.getElementById('seed');
+      const seedLabel = document.getElementById('seedLabel');
+      const countField = document.querySelector('.field[data-key="count"]');
+
+      // ---------------- 参数字段双向绑定 ----------------
+      document.querySelectorAll('.field[data-key]').forEach((field) => {
+        const range = field.querySelector('input[type="range"]');
+        const num = field.querySelector('input[type="number"]');
+        const val = field.querySelector('.val');
+        const sync = (source) => {
+          const n = Number(source.value);
+          if (!Number.isFinite(n)) return;
+          if (source === range) num.value = String(n);
+          else
+            range.value = String(
+              Math.min(Number(range.max), Math.max(Number(range.min), n))
+            );
+          val.textContent = String(n);
+          scheduleRender();
+        };
+        range.addEventListener('input', () => sync(range));
+        num.addEventListener('input', () => sync(num));
+        num.addEventListener('change', () => sync(num));
+      });
+
+      // ---------------- 颜色 <-> 文本联动 ----------------
+      const isHex = (s) => /^#?[0-9a-fA-F]{6}$/.test(s.trim());
+      const norm = (s) => '#' + s.replace('#', '').toUpperCase();
+      colorEl.addEventListener('input', () => {
+        colorText.value = norm(colorEl.value);
+        colorLabel.textContent = norm(colorEl.value);
+        scheduleRender();
+      });
+      colorText.addEventListener('change', () => {
+        if (isHex(colorText.value)) {
+          colorEl.value = '#' + colorText.value.replace('#', '').toLowerCase();
+          colorText.value = norm(colorText.value);
+          colorLabel.textContent = norm(colorText.value);
+          scheduleRender();
+        }
+      });
+
+      // ---------------- 种子 ----------------
+      const randSeed = () => Math.floor(Math.random() * 0xffffffff) >>> 0;
+      document.getElementById('dice').addEventListener('click', () => {
+        previewSeed = randSeed();
+        seedEl.value = String(previewSeed);
+        seedLabel.textContent = String(previewSeed);
+        scheduleRender();
+      });
+      seedEl.addEventListener('input', () => {
+        const raw = seedEl.value.trim();
+        seedLabel.textContent = raw || 'auto';
+        if (raw !== '' && Number.isFinite(Number(raw))) {
+          previewSeed = Number(raw) >>> 0;
+        }
+        scheduleRender();
+      });
+
+      // ---------------- 自适应开关 ----------------
+      adaptiveEl.addEventListener('change', () => {
+        adaptive = adaptiveEl.checked;
+        countField.classList.toggle('locked', adaptive);
+        countField
+          .querySelectorAll('input')
+          .forEach((el) => (el.disabled = adaptive));
+        scheduleRender();
+      });
+
+      // ---------------- 读参数 ----------------
+      function readField(key) {
+        const f = document.querySelector(`.field[data-key="${key}"]`);
+        return Number(f.querySelector('input[type="number"]').value);
+      }
+      function computeAutoCount(width, barWidth, gap) {
+        if (!width || barWidth <= 0) return 4;
+        return Math.max(4, Math.floor((width + gap) / (barWidth + gap)));
+      }
+      function currentParams() {
+        const barWidth = readField('barWidth');
+        const gap = readField('gap');
+        const maxHeight = readField('maxHeight');
+        const peaks = readField('peaks');
+        let count;
+        if (adaptive && selectedNode) {
+          count = computeAutoCount(selectedNode.width, barWidth, gap);
+          // 回写显示
+          countField.querySelector('.val').textContent = String(count);
+          countField.querySelector('input[type="number"]').value = String(count);
+          countField.querySelector('input[type="range"]').value = String(
+            Math.min(300, count)
+          );
+        } else {
+          count = readField('count');
+        }
+        return {
+          count,
+          barWidth,
+          gap,
+          maxHeight,
+          peaks,
+          colorHex: colorText.value,
+          seed: previewSeed,
+        };
+      }
+
+      // ---------------- 预览渲染 ----------------
+      let renderPending = false;
+      function scheduleRender() {
+        if (renderPending) return;
+        renderPending = true;
+        requestAnimationFrame(() => {
+          renderPending = false;
+          renderPreview();
+        });
+      }
+
+      function renderPreview() {
+        const params = currentParams();
+        const dpr = window.devicePixelRatio || 1;
+        const cssW = canvas.clientWidth;
+        const cssH = canvas.clientHeight;
+        if (canvas.width !== cssW * dpr || canvas.height !== cssH * dpr) {
+          canvas.width = cssW * dpr;
+          canvas.height = cssH * dpr;
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, cssW, cssH);
+
+        const { count, barWidth, gap, maxHeight, peaks, colorHex, seed } =
+          params;
+        const totalW = count * barWidth + Math.max(0, count - 1) * gap;
+        if (totalW <= 0) return;
+
+        // 等比缩放到预览区，保留 4px padding。
+        const pad = 4;
+        const scale = Math.min(
+          (cssW - pad * 2) / totalW,
+          (cssH - pad * 2) / maxHeight
+        );
+        const drawW = totalW * scale;
+        const drawH = maxHeight * scale;
+        const offsetX = (cssW - drawW) / 2;
+        const offsetY = (cssH - drawH) / 2;
+
+        const amps = buildAmplitudes(count, peaks, mulberry32(seed));
+        ctx.fillStyle = colorHex;
+        for (let i = 0; i < count; i++) {
+          const h = Math.max(barWidth, amps[i] * maxHeight) * scale;
+          const w = barWidth * scale;
+          const x = offsetX + i * (barWidth + gap) * scale;
+          const y = offsetY + (drawH - h) / 2;
+          const r = Math.min(w / 2, h / 2);
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+          else drawRoundRect(ctx, x, y, w, h, r);
+          ctx.fill();
+        }
+      }
+
+      // 兼容不支持 roundRect 的旧环境。
+      function drawRoundRect(c, x, y, w, h, r) {
+        r = Math.min(r, w / 2, h / 2);
+        c.moveTo(x + r, y);
+        c.arcTo(x + w, y, x + w, y + h, r);
+        c.arcTo(x + w, y + h, x, y + h, r);
+        c.arcTo(x, y + h, x, y, r);
+        c.arcTo(x, y, x + w, y, r);
+        c.closePath();
+      }
+
+      // ---------------- 主进程消息 ----------------
+      const send = (message) =>
+        parent.postMessage({ pluginMessage: message }, '*');
+
+      document.getElementById('generate').addEventListener('click', () => {
+        const raw = seedEl.value.trim();
+        const seedNum = raw === '' ? null : Number(raw);
+        const params = currentParams();
+        send({
+          type: 'generate',
+          count: params.count,
+          barWidth: params.barWidth,
+          gap: params.gap,
+          maxHeight: params.maxHeight,
+          peaks: params.peaks,
+          colorHex: params.colorHex,
+          // 用户手输了 seed 就用手输，否则把当前 previewSeed 传给主进程，保证生成和预览一致。
+          seed: Number.isFinite(seedNum) ? seedNum : previewSeed,
+        });
+      });
+
+      document.getElementById('close').addEventListener('click', () => {
+        send({ type: 'close' });
+      });
+
+      // ---------------- 接收主进程消息 ----------------
+      window.onmessage = (event) => {
+        const msg = event.data.pluginMessage;
+        if (!msg) return;
+        if (msg.type === 'done') {
+          document.getElementById('status').textContent =
+            `已生成 ${msg.count} 条 · seed = ${msg.seed}`;
+          seedEl.value = String(msg.seed);
+          seedLabel.textContent = String(msg.seed);
+          previewSeed = msg.seed >>> 0;
+        } else if (msg.type === 'selection') {
+          updateSelection(msg.node);
+        }
+      };
+
+      function updateSelection(node) {
+        selectedNode = node;
+        if (node) {
+          selInfo.classList.remove('empty');
+          selInfo.querySelector('.name').textContent = node.name;
+          selInfo.querySelector('.meta').textContent =
+            `${node.type} · ${node.width} × ${node.height}`;
+          adaptiveEl.disabled = false;
+          adaptiveToggle.classList.remove('disabled');
+        } else {
+          selInfo.classList.add('empty');
+          selInfo.querySelector('.name').textContent = '未选中任何节点';
+          selInfo.querySelector('.meta').textContent =
+            '选中一个 Frame 后可跟随其宽度';
+          if (adaptive) {
+            adaptive = false;
+            adaptiveEl.checked = false;
+            countField.classList.remove('locked');
+            countField
+              .querySelectorAll('input')
+              .forEach((el) => (el.disabled = false));
+          }
+          adaptiveEl.disabled = true;
+          adaptiveToggle.classList.add('disabled');
+        }
+        scheduleRender();
+      }
+
+      // ---------------- 初始 ----------------
+      seedEl.placeholder = String(previewSeed);
+      scheduleRender();
+      window.addEventListener('resize', scheduleRender);
+    </script>
+  </body>
+</html>
