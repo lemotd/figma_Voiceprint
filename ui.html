@@ -4,44 +4,67 @@
     <meta charset="UTF-8" />
     <title>Voiceprint</title>
     <style>
+      /* ============================================================
+         Miuix 设计 token（提取自 miuix/library/theme/res/values）
+         - 用半透明黑做容器/边框而不是灰阶实色
+         - 文字按四级 alpha 分层（100 / 80 / 60 / 40）
+         - 圆角走 miuix tiny(8) / small(12) / common(16)
+         - Primary 品牌蓝 #3482FF
+         ============================================================ */
       :root {
-        color-scheme: light dark;
-        --fg: #1a1a1a;
-        --muted: #666;
-        --border: #e0e0e0;
-        --bg-soft: #f7f7f9;
-        --accent: #7b8cff;
+        color-scheme: light;
+        /* Palette · light */
+        --miuix-primary: #3482ff;
+        --miuix-primary-hover: #317af0;
+        --miuix-primary-pressed: #3078eb;
+        --miuix-primary-mask: rgba(52, 130, 255, 0.14);
+        --miuix-on-surface: #000000; /* black_level1 */
+        --miuix-on-surface-secondary: rgba(0, 0, 0, 0.8); /* black_level3 */
+        --miuix-on-surface-tertiary: rgba(0, 0, 0, 0.6); /* black_level4 */
+        --miuix-on-surface-quaternary: rgba(0, 0, 0, 0.4); /* black_level5 */
+        --miuix-outline: rgba(0, 0, 0, 0.1); /* black_level7 */
+        --miuix-surface: #ffffff;
+        --miuix-surface-container: rgba(0, 0, 0, 0.06); /* black_level9 */
+        --miuix-surface-container-low: rgba(0, 0, 0, 0.04); /* black_level10 */
+        --miuix-pressed-mask: rgba(0, 0, 0, 0.08); /* light_pressed_mask */
+        --miuix-hover-mask: rgba(0, 0, 0, 0.06); /* light_hovered_mask */
+        /* Radius */
+        --radius-tiny: 8px; /* button, input */
+        --radius-small: 12px; /* card, container */
+        --radius-common: 16px; /* preference item */
+        --radius-circle: 999px;
       }
+
       * {
         box-sizing: border-box;
       }
+
       body {
         margin: 0;
-        padding: 14px 16px 16px;
+        padding: 16px 16px 20px;
         font-family:
-          Inter,
-          -apple-system,
-          system-ui,
+          'MiSans', Inter, -apple-system, system-ui, 'Helvetica Neue',
           sans-serif;
-        font-size: 12px;
-        color: var(--fg);
-      }
-      h1 {
         font-size: 13px;
-        margin: 0 0 4px;
+        line-height: 1.4;
+        color: var(--miuix-on-surface);
+        background: var(--miuix-surface);
       }
+
       .hint {
-        color: var(--muted);
-        margin: 0 0 10px;
+        color: var(--miuix-on-surface-tertiary);
+        font-size: 12px;
+        margin: 0 0 12px;
       }
+
+      /* ---- 预览区 ---- */
       .preview {
         position: relative;
         width: 100%;
-        height: 88px;
-        background: var(--bg-soft);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        margin-bottom: 10px;
+        height: 92px;
+        background: var(--miuix-surface-container-low);
+        border-radius: var(--radius-small);
+        margin-bottom: 12px;
         overflow: hidden;
       }
       .preview canvas {
@@ -49,53 +72,92 @@
         width: 100%;
         height: 100%;
       }
+
+      /* ---- 选中信息卡片 ---- */
       .selection-bar {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        padding: 8px 10px;
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        margin-bottom: 12px;
+        gap: 10px;
+        padding: 10px 12px;
+        background: var(--miuix-surface-container);
+        border-radius: var(--radius-small);
+        margin-bottom: 14px;
       }
+      /* 只保留一行文案（选中时是尺寸，未选中时是提示），两种状态高度一致，
+         区域不会随选中变化跳变。nowrap + ellipsis 防止长文本换行撑高。 */
       .selection-info {
         flex: 1;
         min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
       }
-      .selection-info .name {
-        color: var(--fg);
+      .selection-info .meta {
+        display: block;
+        color: var(--miuix-on-surface-tertiary);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
-      .selection-info .meta {
-        color: var(--muted);
-        font-variant-numeric: tabular-nums;
-      }
-      .selection-info.empty .name {
-        color: var(--muted);
+
+      /* ---- Pill 开关（miuix Switch 风格） ---- */
+      .follow-toggles {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
       }
       .toggle {
         display: inline-flex;
         align-items: center;
         gap: 6px;
         white-space: nowrap;
+        color: var(--miuix-on-surface-secondary);
         cursor: pointer;
         user-select: none;
+        font-size: 12px;
       }
-      .toggle input {
-        accent-color: var(--accent);
+      .toggle input[type='checkbox'] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 30px;
+        height: 18px;
+        margin: 0;
+        padding: 0;
+        border-radius: var(--radius-circle);
+        background: rgba(0, 0, 0, 0.18);
+        position: relative;
+        cursor: pointer;
+        transition: background-color 0.18s ease;
+        flex-shrink: 0;
+      }
+      .toggle input[type='checkbox']::before {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        transition: transform 0.18s ease;
+      }
+      .toggle input[type='checkbox']:checked {
+        background: var(--miuix-primary);
+      }
+      .toggle input[type='checkbox']:checked::before {
+        transform: translateX(12px);
       }
       .toggle.disabled {
         opacity: 0.4;
         cursor: not-allowed;
       }
+      .toggle.disabled input[type='checkbox'] {
+        cursor: not-allowed;
+      }
+
+      /* ---- 参数字段 ---- */
       .field {
-        margin-bottom: 10px;
+        margin-bottom: 12px;
       }
       .field.locked {
         opacity: 0.55;
@@ -103,121 +165,666 @@
       .field-head {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 4px;
+        align-items: center;
+        margin-bottom: 6px;
       }
       .field-head label {
-        color: var(--muted);
+        color: var(--miuix-on-surface-tertiary);
+        font-size: 12px;
       }
       .field-head .val {
-        font-variant-numeric: tabular-nums;
-        color: var(--fg);
-      }
-      .field.locked .val::after {
-        content: ' · 自动';
-        color: var(--accent);
+        display: none;
       }
       .row {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
       }
-      input[type='range'] {
+
+      /* ---- Slider（miuix SeekBar 风格）----------------------------
+         miuix 的 progress 是一段独立的**双端圆角胶囊**。原生 range 的
+         track 只能靠 linear-gradient 做填充，右端会被硬切成直角。所以
+         给 range 外面包一层 .slider-shell：shell 是灰底胶囊，里面塞一个
+         真正的 .slider-progress div 承担蓝色胶囊（两端 border-radius）。
+         range 元素透明覆盖在上面，只负责交互和 thumb。--pct 挂在 shell
+         上，JS 里的 updateSliderFill 更新它，progress div 的 width
+         直接读 var(--pct)。
+      -------------------------------------------------------------- */
+      /* 几何关系全部照 miuix SeekBar 源码推导（28dp track 等比缩到 20px）：
+         - thumb drawable 容器 = 28dp = track 高，里面白色 oval 只有 20dp
+           （thumb XML 四周 inset 4dp）→ 白圆直径 = track高 * 20/28 ≈ 14px
+         - onDraw: progress 右端 = location + radius，radius = 14dp = track高/2
+           → progress 右端 = thumb 中心 + track高/2，所以蓝条会超出白圆一圈
+         - thumb 中心行程: track高/2 → 100% - track高/2
+         原生 range 的 thumb 定位公式和上面对不齐，所以白圆也用自己的 DOM
+         元素画（.slider-thumb），原生 thumb 置为完全透明、只留命中区域。 */
+      .slider-shell {
+        position: relative;
+        display: block;
         flex: 1;
-        accent-color: var(--accent);
+        height: var(--track-h);
+        border-radius: var(--radius-circle);
+        background: var(--miuix-surface-container-low);
+        --pct: 0; /* 0~1 纯数字 */
+        --track-h: 20px;
+        --thumb-d: 14px; /* = track-h * 20/28 */
+      }
+      .slider-progress {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: calc(var(--track-h) + var(--pct) * (100% - var(--track-h)));
+        border-radius: var(--radius-circle);
+        background: var(--miuix-primary);
+        pointer-events: none;
+      }
+      .slider-thumb {
+        position: absolute;
+        top: 50%;
+        left: calc(var(--track-h) / 2 + var(--pct) * (100% - var(--track-h)));
+        width: var(--thumb-d);
+        height: var(--thumb-d);
+        margin-left: calc(var(--thumb-d) / -2);
+        margin-top: calc(var(--thumb-d) / -2);
+        border-radius: 50%;
+        background: #fff;
+        pointer-events: none;
+        z-index: 3; /* 压在透明的原生 range 之上 */
+        transition: transform 0.15s ease;
+      }
+      .slider-shell:hover .slider-thumb {
+        transform: scale(1.07);
+      }
+      .slider-shell:active .slider-thumb,
+      .slider-shell:has(input:active) .slider-thumb {
+        transform: scale(1.13);
+      }
+      /* 原生 range：透明覆盖在上层，只负责交互。thumb 宽度取 track-h，
+         这样它的中心与 .slider-thumb 的 left 完全重合，拖拽手感一致。 */
+      input[type='range'] {
+        -webkit-appearance: none;
+        appearance: none;
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: var(--track-h);
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        cursor: pointer;
+        outline: none;
+        z-index: 2;
+      }
+      input[type='range']::-webkit-slider-runnable-track {
+        height: var(--track-h);
+        background: transparent;
+      }
+      input[type='range']::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: var(--track-h);
+        height: var(--track-h);
+        border: none;
+        border-radius: 50%;
+        background: transparent;
+        box-shadow: none;
+        cursor: pointer;
+      }
+      input[type='range']::-moz-range-track {
+        height: var(--track-h);
+        background: transparent;
+        border: none;
+      }
+      input[type='range']::-moz-range-progress {
+        background: transparent;
+      }
+      input[type='range']::-moz-range-thumb {
+        width: var(--track-h);
+        height: var(--track-h);
+        border: none;
+        border-radius: 50%;
+        background: transparent;
+        box-shadow: none;
+        cursor: pointer;
+      }
+      input[type='range']:focus-visible + .slider-thumb,
+      .slider-shell:focus-within .slider-thumb {
+        box-shadow: 0 0 0 4px var(--miuix-primary-mask);
+      }
+      input[type='range']:disabled {
+        cursor: not-allowed;
+      }
+      .field.locked .slider-shell {
+        opacity: 0.6;
+      }
+
+      /* ---- 文本/数字输入 ---- */
+      input[type='number'],
+      .seed-input {
+        height: 28px;
+        padding: 0 8px;
+        border: 1px solid var(--miuix-outline);
+        border-radius: var(--radius-tiny);
+        font-size: 12px;
+        background: var(--miuix-surface);
+        color: var(--miuix-on-surface);
+        outline: none;
+        transition:
+          border-color 0.15s ease,
+          box-shadow 0.15s ease;
       }
       input[type='number'] {
-        width: 56px;
-        height: 24px;
-        padding: 0 6px;
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        font-size: 12px;
+        width: 60px;
         text-align: right;
-      }
-      input[type='color'] {
-        width: 40px;
-        height: 26px;
-        padding: 0;
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        background: none;
-        cursor: pointer;
       }
       .seed-input {
         flex: 1;
-        height: 26px;
-        padding: 0 8px;
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        font-family: ui-monospace, monospace;
+        font-family: ui-monospace, 'SF Mono', monospace;
+      }
+      input[type='number']:focus,
+      .seed-input:focus {
+        border-color: var(--miuix-primary);
+        box-shadow: 0 0 0 3px var(--miuix-primary-mask);
+      }
+      input[type='number']:disabled,
+      .seed-input:disabled {
+        background: var(--miuix-surface-container-low);
+        color: var(--miuix-on-surface-quaternary);
+        cursor: not-allowed;
+      }
+
+      /* ---- 拾色器 ---- */
+      input[type='color'] {
+        width: 40px;
+        height: 28px;
+        padding: 0;
+        border: 1px solid var(--miuix-outline);
+        border-radius: var(--radius-tiny);
+        background: none;
+        cursor: pointer;
+        overflow: hidden;
+      }
+      input[type='color']::-webkit-color-swatch-wrapper {
+        padding: 2px;
+      }
+      input[type='color']::-webkit-color-swatch {
+        border: none;
+        border-radius: 5px;
+      }
+
+      /* ---- 一体式颜色 / 不透明度输入 ----------------------------
+         整个容器是一个 miuix 输入控件：自己承担底色、圆角和聚焦态；
+         内部 swatch / hex / opacity 都无边框透明底，靠一根 hairline 分隔。
+      ---------------------------------------------------------- */
+      .color-combo {
+        display: flex;
+        align-items: center;
+        flex: 1;
+        min-width: 0;
+        height: 30px;
+        padding: 0 8px 0 5px;
+        gap: 7px;
+        background: var(--miuix-surface-container-low);
+        border: 1px solid transparent;
+        border-radius: var(--radius-tiny);
+        transition:
+          border-color 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+      .color-combo:hover {
+        background: var(--miuix-surface-container);
+      }
+      .color-combo:focus-within {
+        background: var(--miuix-surface);
+        border-color: var(--miuix-primary);
+        box-shadow: 0 0 0 3px var(--miuix-primary-mask);
+      }
+      .color-combo .combo-hex {
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+        padding: 0;
+        border: 0;
+        background: none;
+        outline: none;
+        color: var(--miuix-on-surface);
+        font-size: 12px;
+        font-family: ui-monospace, 'SF Mono', monospace;
+        letter-spacing: 0.02em;
+      }
+      .color-combo .combo-divider {
+        width: 1px;
+        height: 16px;
+        flex-shrink: 0;
+        background: var(--miuix-outline);
+      }
+      .color-combo .combo-opacity {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        flex-shrink: 0;
+      }
+      .color-combo .combo-opacity input {
+        width: 30px;
+        height: 100%;
+        padding: 0;
+        border: 0;
+        background: none;
+        outline: none;
+        color: var(--miuix-on-surface);
+        font-size: 12px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        /* 去掉数字框的上下箭头，容器窄放不下 */
+        -moz-appearance: textfield;
+        appearance: textfield;
+      }
+      .color-combo .combo-opacity input::-webkit-outer-spin-button,
+      .color-combo .combo-opacity input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      .color-combo .combo-suffix {
+        color: var(--miuix-on-surface-quaternary);
         font-size: 12px;
       }
+
+      /* ---- 图标按钮 ---- */
       .icon-btn {
         width: 28px;
         height: 28px;
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        background: #fff;
+        border: 1px solid var(--miuix-outline);
+        border-radius: var(--radius-tiny);
+        background: var(--miuix-surface);
         cursor: pointer;
         font-size: 14px;
         line-height: 1;
+        color: var(--miuix-on-surface-secondary);
+        transition: background-color 0.15s ease;
       }
       .icon-btn:hover {
-        border-color: var(--accent);
+        background: var(--miuix-hover-mask);
       }
+      .icon-btn:active {
+        background: var(--miuix-pressed-mask);
+      }
+
       hr {
         border: 0;
-        border-top: 1px solid var(--border);
-        margin: 12px 0;
+        border-top: 1px solid var(--miuix-outline);
+        margin: 14px 0;
       }
+
+      /* ---- Action 按钮 ---- */
       .actions {
         display: flex;
         gap: 8px;
       }
       button.action {
         flex: 1;
-        height: 32px;
-        border-radius: 6px;
+        height: 36px;
+        border-radius: var(--radius-small);
         border: 1px solid transparent;
-        font-size: 12px;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: inherit;
         cursor: pointer;
+        transition: background-color 0.15s ease;
       }
       button.primary {
-        background: var(--accent);
+        background: var(--miuix-primary);
         color: #fff;
       }
       button.primary:hover {
-        filter: brightness(0.95);
+        background: var(--miuix-primary-hover);
+      }
+      button.primary:active {
+        background: var(--miuix-primary-pressed);
       }
       button.ghost {
         background: transparent;
-        border-color: var(--border);
+        border-color: var(--miuix-outline);
+        color: var(--miuix-on-surface);
       }
+      button.ghost:hover {
+        background: var(--miuix-hover-mask);
+      }
+      button.ghost:active {
+        background: var(--miuix-pressed-mask);
+      }
+      /* 「换样式」骰子按钮：钉在预览容器右下角的圆形小图标按钮 */
+      .preview .dice-btn {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: 1px solid var(--miuix-outline);
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--miuix-on-surface-secondary);
+        font-size: 14px;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        transition:
+          background-color 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+      .preview .dice-btn:hover {
+        background: #fff;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+      }
+      .preview .dice-btn:active {
+        background: var(--miuix-pressed-mask);
+      }
+      .preview .dice-btn:focus-visible {
+        outline: none;
+        box-shadow:
+          0 1px 3px rgba(0, 0, 0, 0.08),
+          0 0 0 3px var(--miuix-primary-mask);
+      }
+      /* 骰子图标：默认静止；.rolling 时播一次"投骰子"动画。
+         位移和旋转需要各自独立的缓动（抛物线要 ease-in/out，空中旋转要匀速），
+         单个 transform 属性只能有一条曲线，所以拆成两层：
+           .dice-icon —— 抛物线上下位移（抛起、落地、弹跳）
+           .dice-face —— 翻滚旋转 + 缩放
+         两个动画时长一致，保持同步。圆形按钮外壳不参与运动。 */
+      .preview .dice-btn .dice-icon,
+      .preview .dice-btn .dice-face {
+        display: inline-block;
+        line-height: 1;
+        transform-origin: 50% 50%;
+      }
+
+      /* 抛物线位移：出手后受重力减速上升 → 加速下落 → 一次小幅弹跳 → 贴地 */
+      @keyframes dice-toss {
+        0% {
+          transform: translateY(0);
+          animation-timing-function: cubic-bezier(0.1, 0.72, 0.32, 1); /* 上升减速 */
+        }
+        32% {
+          /* 抛起高度 5px：28px 按钮里 14px 字号的 emoji 放大 1.16 倍后上方约剩 5.9px，
+             取 5px 刚好不顶出圆形背景 */
+          transform: translateY(-5px);
+          animation-timing-function: cubic-bezier(0.68, 0, 0.9, 0.42); /* 下落加速 */
+        }
+        52% {
+          transform: translateY(0); /* 第一次落地 */
+          animation-timing-function: cubic-bezier(0.1, 0.72, 0.32, 1);
+        }
+        66% {
+          transform: translateY(-2px); /* 反弹，幅度骤减 */
+          animation-timing-function: cubic-bezier(0.68, 0, 0.9, 0.42);
+        }
+        78%,
+        100% {
+          /* 第二次落地后贴地不再起跳。此后位移静止，但 dice-tumble 仍在转最后 50°，
+             整体不会出现"完全静止却还没结束"的空档 */
+          transform: translateY(0);
+        }
+      }
+
+      /* 翻滚：全程 linear，顿挫感靠"段间角速度阶梯突降"制造，而不是靠缓动曲线。
+         降档点精确对齐 dice-toss 的两次落地（52% / 78%）——每次触地被摩擦削一次转速：
+           空中   10.4°/百分点（匀速狂转，空中没有力让它减速）
+           一档    5.0°/百分点（第一次落地后）
+           二档    2.3°/百分点（第二次落地后）
+         每档内部匀速、不留静止平台期，末段保持非零速度直接撞停在 720°，
+         做出"啪"一下定格的手感。若末段用 ease-out 收尾，速度趋零会拖出软尾巴，
+         在小尺寸图标上就会被读成"卡了一下"。 */
+      @keyframes dice-tumble {
+        0% {
+          transform: rotate(0deg) scale(1);
+        }
+        32% {
+          transform: rotate(332deg) scale(1.16); /* 抛物线顶点，缩放峰值 */
+        }
+        52% {
+          transform: rotate(540deg) scale(1.06); /* 第一次落地，转速砍半 */
+        }
+        78% {
+          transform: rotate(670deg) scale(1); /* 第二次落地，转速再砍半 */
+        }
+        100% {
+          transform: rotate(720deg) scale(1); /* 撞停，720° 视觉等同 0° */
+        }
+      }
+
+      /* 两者主缓动都设 linear：
+         dice-toss 的节奏由各关键帧自带的 animation-timing-function 掌控（抛物线需要 ease-in/out）；
+         dice-tumble 本身就要全程匀速，节奏由关键帧的角度阶梯决定。 */
+      .preview .dice-btn .dice-icon.rolling {
+        animation: dice-toss 0.8s linear;
+      }
+      .preview .dice-btn .dice-icon.rolling .dice-face {
+        animation: dice-tumble 0.8s linear;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .preview .dice-btn .dice-icon.rolling,
+        .preview .dice-btn .dice-icon.rolling .dice-face {
+          animation: none;
+        }
+      }
+
+      /* ---- 自定义拾色器（miuix 风格）----------------------------
+         原生 input[type=color] 会拉起系统弹窗，样式完全不可控，所以整套自绘：
+         色块按钮 + 弹层（SV 面板 / 色相条 / miuix 预设色）。
+         色相条沿用 SeekBar 的几何：pill 轨道 + 白圆 thumb 内缩。
+      ---------------------------------------------------------- */
+      .color-row {
+        position: relative; /* 给 .color-popover 做定位锚点 */
+      }
+      /* 一体式容器内的色块：小圆角方块，无外边框，靠内阴影勾边 */
+      .color-swatch {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 5px;
+        background: none;
+        cursor: pointer;
+        transition: transform 0.12s ease;
+      }
+      .color-swatch:hover {
+        transform: scale(1.08);
+      }
+      .color-swatch[aria-expanded='true'] {
+        box-shadow: 0 0 0 2px var(--miuix-primary);
+      }
+      .color-swatch-fill {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 5px;
+        /* 棋盘格垫底，配合 opacity 时能看出透明度 */
+        background-color: var(--swatch-color, #8c93b0);
+        background-image: linear-gradient(
+            45deg,
+            rgba(0, 0, 0, 0.06) 25%,
+            transparent 25% 75%,
+            rgba(0, 0, 0, 0.06) 75%
+          ),
+          linear-gradient(
+            45deg,
+            rgba(0, 0, 0, 0.06) 25%,
+            transparent 25% 75%,
+            rgba(0, 0, 0, 0.06) 75%
+          );
+        background-size: 8px 8px;
+        background-position:
+          0 0,
+          4px 4px;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+      }
+
+      .color-popover {
+        position: absolute;
+        left: 0;
+        bottom: calc(100% + 8px); /* 颜色行在底部，弹层向上展开 */
+        z-index: 40;
+        width: 232px;
+        padding: 10px;
+        background: var(--miuix-surface);
+        border-radius: var(--radius-common);
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.06),
+          0 8px 28px rgba(0, 0, 0, 0.16);
+        animation: cp-in 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .color-popover[hidden] {
+        display: none;
+      }
+      @keyframes cp-in {
+        from {
+          opacity: 0;
+          transform: translateY(4px) scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .color-popover {
+          animation: none;
+        }
+      }
+
+      /* SV 面板：底色为当前色相，叠加 白→透明(横) 和 透明→黑(纵) */
+      .cp-sv {
+        position: relative;
+        height: 120px;
+        border-radius: var(--radius-tiny);
+        cursor: crosshair;
+        touch-action: none;
+        background-color: hsl(var(--cp-hue, 220) 100% 50%);
+        background-image: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0) 0%,
+            #000 100%
+          ),
+          linear-gradient(to right, #fff 0%, rgba(255, 255, 255, 0) 100%);
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+      }
+      .cp-sv-cursor {
+        position: absolute;
+        left: var(--cp-x, 0%);
+        top: var(--cp-y, 0%);
+        width: 14px;
+        height: 14px;
+        margin: -7px 0 0 -7px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.3),
+          0 1px 3px rgba(0, 0, 0, 0.3);
+        pointer-events: none;
+      }
+
+      /* 色相条：几何同 SeekBar，轨道是彩虹渐变 */
+      .cp-hue {
+        position: relative;
+        height: 16px;
+        margin: 10px 0;
+        border-radius: var(--radius-circle);
+        cursor: pointer;
+        touch-action: none;
+        --hue-thumb-d: 11px; /* = 16 * 20/28，与 SeekBar 同比例 */
+        background: linear-gradient(
+          to right,
+          #f00 0%,
+          #ff0 17%,
+          #0f0 33%,
+          #0ff 50%,
+          #00f 67%,
+          #f0f 83%,
+          #f00 100%
+        );
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+      }
+      .cp-hue-thumb {
+        position: absolute;
+        top: 50%;
+        left: calc(8px + var(--cp-hue-pct, 0) * (100% - 16px));
+        width: var(--hue-thumb-d);
+        height: var(--hue-thumb-d);
+        margin-left: calc(var(--hue-thumb-d) / -2);
+        margin-top: calc(var(--hue-thumb-d) / -2);
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+        pointer-events: none;
+      }
+
+      /* miuix 预设色 */
+      .cp-presets {
+        display: grid;
+        grid-template-columns: repeat(9, 1fr);
+        gap: 5px;
+      }
+      .cp-preset {
+        width: 100%;
+        aspect-ratio: 1;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        background: var(--c);
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+        transition: transform 0.12s ease;
+      }
+      .cp-preset:hover {
+        transform: scale(1.18);
+      }
+      .cp-preset[aria-pressed='true'] {
+        box-shadow:
+          inset 0 0 0 1px rgba(0, 0, 0, 0.1),
+          0 0 0 2px var(--miuix-surface),
+          0 0 0 3.5px var(--miuix-primary);
+      }
+
       .status {
-        margin-top: 8px;
+        margin-top: 10px;
         min-height: 14px;
-        color: var(--muted);
+        color: var(--miuix-on-surface-tertiary);
+        font-size: 12px;
         font-variant-numeric: tabular-nums;
       }
     </style>
   </head>
   <body>
-    <h1>Voiceprint</h1>
-    <p class="hint">随机生成一段声纹。参数变化时即时预览。</p>
+    <p class="hint">随机生成一段声纹。</p>
 
     <div class="preview">
       <canvas id="preview"></canvas>
+      <button
+        class="dice-btn"
+        id="dice"
+        type="button"
+        title="换一个样式"
+        aria-label="换一个样式"
+      ><span class="dice-icon" aria-hidden="true"
+          ><span class="dice-face">🎲</span></span
+        ></button>
     </div>
 
     <div class="selection-bar">
-      <div class="selection-info empty" id="selInfo">
-        <span class="name">未选中任何节点</span>
-        <span class="meta">选中一个 Frame 后可跟随其宽度</span>
+      <div class="selection-info" id="selInfo">
+        <span class="meta">选中一个 Frame 后可跟随宽高</span>
       </div>
-      <label class="toggle disabled" id="adaptiveToggle">
-        <input type="checkbox" id="adaptive" disabled />
-        跟随宽度
-      </label>
+      <div class="follow-toggles">
+        <label class="toggle disabled" id="followSizeToggle">
+          <input type="checkbox" id="followSize" disabled />
+          跟随宽高
+        </label>
+      </div>
     </div>
 
     <div class="field" data-key="count">
@@ -272,26 +879,55 @@
 
     <div class="field">
       <div class="field-head">
-        <label>颜色</label><span class="val" id="colorLabel">#7B8CFF</span>
+        <label>颜色 / 不透明度</label>
       </div>
-      <div class="row">
-        <input type="color" id="color" value="#7b8cff" />
-        <input type="text" class="seed-input" id="colorText" value="#7B8CFF" />
-      </div>
-    </div>
+      <div class="row color-row">
+        <!-- 一体式输入：色块 / hex / 分隔线 / 不透明度 / % 共处一个容器，
+             容器本身承担边框与聚焦态，内部各 input 均无边框透明底。 -->
+        <div class="color-combo" id="colorCombo">
+          <button
+            type="button"
+            class="color-swatch"
+            id="colorSwatch"
+            title="选择颜色"
+            aria-label="选择颜色"
+            aria-expanded="false"
+          ><span class="color-swatch-fill" id="colorSwatchFill"></span></button>
+          <input
+            type="text"
+            class="combo-hex"
+            id="colorText"
+            value="8C93B0"
+            maxlength="7"
+            spellcheck="false"
+            aria-label="颜色 HEX"
+          />
+          <span class="combo-divider" aria-hidden="true"></span>
+          <div class="combo-opacity" title="不透明度">
+            <input
+              type="number"
+              id="opacity"
+              min="0"
+              max="100"
+              step="1"
+              value="40"
+              aria-label="不透明度百分比"
+            />
+            <span class="combo-suffix" aria-hidden="true">%</span>
+          </div>
+        </div>
 
-    <div class="field">
-      <div class="field-head">
-        <label>随机种子</label><span class="val" id="seedLabel">auto</span>
-      </div>
-      <div class="row">
-        <input
-          class="seed-input"
-          id="seed"
-          type="text"
-          placeholder="留空则每次随机"
-        />
-        <button class="icon-btn" id="dice" title="换一个种子">🎲</button>
+        <!-- 自定义拾色器弹层：原生 input[type=color] 的系统弹窗无法用 CSS 定制，
+             这里整套自绘（SV 面板 + 色相条 + miuix 预设色）。 -->
+        <div class="color-popover" id="colorPopover" hidden>
+          <div class="cp-sv" id="cpSV">
+            <span class="cp-sv-cursor" id="cpSVCursor"></span>
+          </div>
+          <div class="cp-hue" id="cpHue">
+            <span class="cp-hue-thumb" id="cpHueThumb"></span>
+          </div>
+          <div class="cp-presets" id="cpPresets"></div>
+        </div>
       </div>
     </div>
 
@@ -299,7 +935,6 @@
 
     <div class="actions">
       <button class="action primary" id="generate">生成到画布</button>
-      <button class="action ghost" id="close">关闭</button>
     </div>
 
     <div class="status" id="status"></div>
@@ -384,24 +1019,64 @@
       // previewSeed 让预览稳定：拖动参数时波形形状不变，只有 count 或 seed 换才会明显变。
       let previewSeed = (Math.random() * 0xffffffff) >>> 0;
       let selectedNode = null;
-      let adaptive = false;
+      // 跟随宽高：一个开关同时接管 count（由宽度反推）和 maxHeight（取高度）
+      let followSize = false;
 
       // ---------------- DOM 引用 ----------------
       const canvas = document.getElementById('preview');
       const ctx = canvas.getContext('2d');
       const selInfo = document.getElementById('selInfo');
-      const adaptiveToggle = document.getElementById('adaptiveToggle');
-      const adaptiveEl = document.getElementById('adaptive');
-      const colorEl = document.getElementById('color');
+      const followSizeToggle = document.getElementById('followSizeToggle');
+      const followSizeEl = document.getElementById('followSize');
       const colorText = document.getElementById('colorText');
-      const colorLabel = document.getElementById('colorLabel');
-      const seedEl = document.getElementById('seed');
-      const seedLabel = document.getElementById('seedLabel');
       const countField = document.querySelector('.field[data-key="count"]');
+      const maxHeightField = document.querySelector(
+        '.field[data-key="maxHeight"]'
+      );
 
       // ---------------- 参数字段双向绑定 ----------------
+      // miuix slider 靠外包一层 .slider-shell + 里面 .slider-progress 画双端圆角。
+      // --pct 挂在 shell 上，updateSliderFill 更新它，progress div 直接读 var(--pct)。
+      // 把原生 range 包进 shell，并补上自绘的 progress 胶囊与白色 thumb。
+      // 顺序：progress(底) → range(透明，交互层) → thumb(顶，白圆压在蓝条上)
+      function wrapSlider(range) {
+        if (
+          !range ||
+          (range.parentElement &&
+            range.parentElement.classList.contains('slider-shell'))
+        )
+          return;
+        const shell = document.createElement('span');
+        shell.className = 'slider-shell';
+        const progress = document.createElement('span');
+        progress.className = 'slider-progress';
+        const thumb = document.createElement('span');
+        thumb.className = 'slider-thumb';
+        range.parentNode.insertBefore(shell, range);
+        shell.appendChild(progress);
+        shell.appendChild(range);
+        shell.appendChild(thumb);
+      }
+      function updateSliderFill(range) {
+        if (!range) return;
+        const min = Number(range.min);
+        const max = Number(range.max);
+        const v = Number(range.value);
+        if (
+          !Number.isFinite(min) ||
+          !Number.isFinite(max) ||
+          !Number.isFinite(v)
+        )
+          return;
+        // --pct 是 0~1 的纯数字，CSS 里参与 calc 计算 progress 宽度
+        const pct =
+          max === min ? 0 : Math.max(0, Math.min(1, (v - min) / (max - min)));
+        const shell = range.closest('.slider-shell');
+        if (shell) shell.style.setProperty('--pct', String(pct));
+      }
       document.querySelectorAll('.field[data-key]').forEach((field) => {
         const range = field.querySelector('input[type="range"]');
+        wrapSlider(range);
         const num = field.querySelector('input[type="number"]');
         const val = field.querySelector('.val');
         const sync = (source) => {
@@ -413,54 +1088,257 @@
               Math.min(Number(range.max), Math.max(Number(range.min), n))
             );
           val.textContent = String(n);
+          updateSliderFill(range);
           scheduleRender();
         };
         range.addEventListener('input', () => sync(range));
         num.addEventListener('input', () => sync(num));
         num.addEventListener('change', () => sync(num));
+        updateSliderFill(range); // 初始化 --pct
       });
 
       // ---------------- 颜色 <-> 文本联动 ----------------
       const isHex = (s) => /^#?[0-9a-fA-F]{6}$/.test(s.trim());
       const norm = (s) => '#' + s.replace('#', '').toUpperCase();
-      colorEl.addEventListener('input', () => {
-        colorText.value = norm(colorEl.value);
-        colorLabel.textContent = norm(colorEl.value);
+      // 不透明度合并到颜色行，只保留数字输入。读值时统一 clamp 到 0-100，
+      // 避免非法或超出范围的中间态影响预览与生成。
+      const opacityInput = document.getElementById('opacity');
+      const clampOpacityPct = (n) =>
+        Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0;
+      const readOpacityPct = () => clampOpacityPct(Number(opacityInput.value));
+      // 一体式输入框里 hex 不显示 # 前缀（对齐设计稿），所以读值时统一过 norm() 补上。
+      const readColorHex = () => norm(colorText.value);
+
+      // ---------------- 自定义拾色器 ----------------
+      // hsv 是拾色器的内部状态；hex 始终由 hsv 推导，colorText.value 是对外的唯一出口。
+      // 手输 hex 时反解成 hsv 回填面板（灰阶的 hue 不确定，保留原 hue 避免面板跳动）。
+      const colorSwatch = document.getElementById('colorSwatch');
+      const colorSwatchFill = document.getElementById('colorSwatchFill');
+      const colorPopover = document.getElementById('colorPopover');
+      const cpSV = document.getElementById('cpSV');
+      const cpSVCursor = document.getElementById('cpSVCursor');
+      const cpHue = document.getElementById('cpHue');
+      const cpHueThumb = document.getElementById('cpHueThumb');
+      const cpPresets = document.getElementById('cpPresets');
+
+      // miuix feature colors（library/theme/res/values/colors.xml 的 *_light_level1 系列）
+      const MIUIX_PRESETS = [
+        '#FA382E', // red
+        '#FF6A05', // orange
+        '#FF9F05', // apricot orange
+        '#FFBB0F', // yellow
+        '#FFD000', // lemon yellow
+        '#84E203', // chartreuse
+        '#1DCD3A', // green
+        '#0CCE94', // turquoise
+        '#0FCACA', // cyan
+        '#29A9FF', // sky blue
+        '#3482FF', // blue（miuix primary）
+        '#7767F9', // purple
+        '#E74095', // magenta
+        '#8C93B0', // grey（默认色）
+        '#000000',
+        '#666666',
+        '#B0B0B0',
+        '#FFFFFF',
+      ];
+
+      let hsv = { h: 220, s: 0.2, v: 0.69 };
+
+      function hsvToRgb(h, s, v) {
+        const c = v * s;
+        const hp = (((h % 360) + 360) % 360) / 60;
+        const x = c * (1 - Math.abs((hp % 2) - 1));
+        const m = v - c;
+        let r = 0,
+          g = 0,
+          b = 0;
+        if (hp < 1) [r, g, b] = [c, x, 0];
+        else if (hp < 2) [r, g, b] = [x, c, 0];
+        else if (hp < 3) [r, g, b] = [0, c, x];
+        else if (hp < 4) [r, g, b] = [0, x, c];
+        else if (hp < 5) [r, g, b] = [x, 0, c];
+        else [r, g, b] = [c, 0, x];
+        return [
+          Math.round((r + m) * 255),
+          Math.round((g + m) * 255),
+          Math.round((b + m) * 255),
+        ];
+      }
+      function hsvToHex(h, s, v) {
+        return (
+          '#' +
+          hsvToRgb(h, s, v)
+            .map((n) => n.toString(16).padStart(2, '0').toUpperCase())
+            .join('')
+        );
+      }
+      function hexToHsv(hex) {
+        const c = hex.replace('#', '');
+        const r = parseInt(c.slice(0, 2), 16) / 255;
+        const g = parseInt(c.slice(2, 4), 16) / 255;
+        const b = parseInt(c.slice(4, 6), 16) / 255;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const d = max - min;
+        let h = 0;
+        if (d !== 0) {
+          if (max === r) h = ((g - b) / d) % 6;
+          else if (max === g) h = (b - r) / d + 2;
+          else h = (r - g) / d + 4;
+          h *= 60;
+          if (h < 0) h += 360;
+        }
+        return { h, s: max === 0 ? 0 : d / max, v: max };
+      }
+
+      // 把 hsv 状态刷到 UI（面板游标、色相 thumb、色块、hex 文本、label、预设选中态）
+      function syncColorUI(opts) {
+        const hex = hsvToHex(hsv.h, hsv.s, hsv.v);
+        // 输入框里不带 #，内部流转仍用 #RRGGBB
+        if (!opts || !opts.skipText) colorText.value = hex.slice(1);
+        colorSwatchFill.style.setProperty('--swatch-color', hex);
+        colorSwatchFill.style.opacity = String(
+          Math.max(0.08, readOpacityPct() / 100)
+        );
+        cpSV.style.setProperty('--cp-hue', String(Math.round(hsv.h)));
+        cpSVCursor.style.setProperty('--cp-x', hsv.s * 100 + '%');
+        cpSVCursor.style.setProperty('--cp-y', (1 - hsv.v) * 100 + '%');
+        cpHueThumb.style.setProperty('--cp-hue-pct', String(hsv.h / 360));
+        const cur = hex.toUpperCase();
+        cpPresets.querySelectorAll('.cp-preset').forEach((b) => {
+          b.setAttribute(
+            'aria-pressed',
+            b.dataset.color === cur ? 'true' : 'false'
+          );
+        });
+      }
+      // 外部设色入口（预设、手输 hex、恢复上次参数都走这里）
+      function setColorFromHex(hex, opts) {
+        const next = hexToHsv(hex);
+        // 灰阶（s=0）反解不出 hue，沿用当前 hue，避免色相条乱跳
+        hsv = { h: next.s === 0 ? hsv.h : next.h, s: next.s, v: next.v };
+        syncColorUI(opts);
+        scheduleRender();
+      }
+
+      // 预设色按钮
+      MIUIX_PRESETS.forEach((hex) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'cp-preset';
+        b.dataset.color = hex;
+        b.title = hex;
+        b.setAttribute('aria-label', hex);
+        b.setAttribute('aria-pressed', 'false');
+        b.style.setProperty('--c', hex);
+        b.addEventListener('click', () => setColorFromHex(hex));
+        cpPresets.appendChild(b);
+      });
+
+      // 通用拖拽：按下即响应，捕获指针后持续跟随，松开自动解绑。
+      function bindDrag(el, onMove) {
+        const handle = (e) => {
+          const r = el.getBoundingClientRect();
+          onMove(
+            Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
+            Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))
+          );
+        };
+        el.addEventListener('pointerdown', (e) => {
+          el.setPointerCapture(e.pointerId);
+          handle(e);
+          const move = (ev) => handle(ev);
+          const up = () => {
+            el.removeEventListener('pointermove', move);
+            el.removeEventListener('pointerup', up);
+            el.removeEventListener('pointercancel', up);
+          };
+          el.addEventListener('pointermove', move);
+          el.addEventListener('pointerup', up);
+          el.addEventListener('pointercancel', up);
+        });
+      }
+      bindDrag(cpSV, (x, y) => {
+        hsv.s = x;
+        hsv.v = 1 - y;
+        syncColorUI();
         scheduleRender();
       });
+      bindDrag(cpHue, (x) => {
+        hsv.h = x * 360;
+        syncColorUI();
+        scheduleRender();
+      });
+
+      // 弹层开关：点色块切换，点外部或 Esc 关闭。
+      function setPopover(open) {
+        colorPopover.hidden = !open;
+        colorSwatch.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+      colorSwatch.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setPopover(colorPopover.hidden);
+      });
+      colorPopover.addEventListener('click', (e) => e.stopPropagation());
+      document.addEventListener('click', () => setPopover(false));
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') setPopover(false);
+      });
+
+      // 手输 hex：容忍带不带 # 两种写法，正规化后写回（不带 #）。
+      // 非法输入回滚到当前 hsv 对应的值，避免把脏值带进生成流程。
       colorText.addEventListener('change', () => {
-        if (isHex(colorText.value)) {
-          colorEl.value = '#' + colorText.value.replace('#', '').toLowerCase();
-          colorText.value = norm(colorText.value);
-          colorLabel.textContent = norm(colorText.value);
-          scheduleRender();
-        }
+        if (isHex(colorText.value)) setColorFromHex(norm(colorText.value));
+        else syncColorUI();
+      });
+      // 不透明度：输入过程即时刷新预览；change/blur 时把值正规化到 0-100 整数。
+      opacityInput.addEventListener('input', () => {
+        syncColorUI({ skipText: true });
+        scheduleRender();
+      });
+      opacityInput.addEventListener('change', () => {
+        opacityInput.value = String(Math.round(readOpacityPct()));
+        syncColorUI({ skipText: true });
+        scheduleRender();
       });
 
       // ---------------- 种子 ----------------
       const randSeed = () => Math.floor(Math.random() * 0xffffffff) >>> 0;
-      document.getElementById('dice').addEventListener('click', () => {
+      // 「换样式」按钮：换一个 previewSeed，触发预览刷新；生成时会用当前 previewSeed。
+      // 点击时同时给骰子播一次"投骰子"动画，动画结束后清掉类，允许下次连点重新触发。
+      const diceBtn = document.getElementById('dice');
+      const diceIcon = diceBtn.querySelector('.dice-icon');
+      diceBtn.addEventListener('click', () => {
         previewSeed = randSeed();
-        seedEl.value = String(previewSeed);
-        seedLabel.textContent = String(previewSeed);
-        scheduleRender();
+        // 走补间而不是 scheduleRender：让波形从旧形状平滑变形到新形状
+        startMorph();
+        // 关键：先移除类、强制一次 reflow（读 offsetWidth），再加类，才能让 CSS 动画重头播。
+        // 否则连续点击时浏览器会认为类没变，动画不会重启。
+        diceIcon.classList.remove('rolling');
+        void diceIcon.offsetWidth;
+        diceIcon.classList.add('rolling');
       });
-      seedEl.addEventListener('input', () => {
-        const raw = seedEl.value.trim();
-        seedLabel.textContent = raw || 'auto';
-        if (raw !== '' && Number.isFinite(Number(raw))) {
-          previewSeed = Number(raw) >>> 0;
-        }
-        scheduleRender();
+      // dice-toss（本元素）和 dice-tumble（子元素，事件会冒泡上来）都会触发 animationend，
+      // 只认其中一个，避免先到的那个提前摘掉 rolling 类把另一个打断。
+      diceIcon.addEventListener('animationend', (e) => {
+        if (e.animationName !== 'dice-tumble') return;
+        diceIcon.classList.remove('rolling');
       });
 
       // ---------------- 自适应开关 ----------------
-      adaptiveEl.addEventListener('change', () => {
-        adaptive = adaptiveEl.checked;
-        countField.classList.toggle('locked', adaptive);
-        countField
-          .querySelectorAll('input')
-          .forEach((el) => (el.disabled = adaptive));
+      // 跟随时条数与最大高度都由节点尺寸接管，所以两个字段一起锁。
+      function setFollowLock(locked) {
+        [countField, maxHeightField].forEach((field) => {
+          field.classList.toggle('locked', locked);
+          field
+            .querySelectorAll('input')
+            .forEach((el) => (el.disabled = locked));
+        });
+      }
+      followSizeEl.addEventListener('change', () => {
+        followSize = followSizeEl.checked;
+        setFollowLock(followSize);
         scheduleRender();
       });
 
@@ -476,19 +1354,36 @@
       function currentParams() {
         const barWidth = readField('barWidth');
         const gap = readField('gap');
-        const maxHeight = readField('maxHeight');
         const peaks = readField('peaks');
+        const follow = followSize && selectedNode;
         let count;
-        if (adaptive && selectedNode) {
+        if (follow) {
           count = computeAutoCount(selectedNode.width, barWidth, gap);
           // 回写显示
           countField.querySelector('.val').textContent = String(count);
-          countField.querySelector('input[type="number"]').value = String(count);
-          countField.querySelector('input[type="range"]').value = String(
-            Math.min(300, count)
-          );
+          countField.querySelector('input[type="number"]').value =
+            String(count);
+          const countRange = countField.querySelector('input[type="range"]');
+          countRange.value = String(Math.min(300, count));
+          updateSliderFill(countRange);
         } else {
           count = readField('count');
+        }
+        let maxHeight;
+        if (follow) {
+          // clamp 到与滑杆一致的合理区间；后端主进程还会再 clamp 一次防呆。
+          maxHeight = Math.min(
+            1000,
+            Math.max(20, Math.round(selectedNode.height))
+          );
+          maxHeightField.querySelector('.val').textContent = String(maxHeight);
+          maxHeightField.querySelector('input[type="number"]').value =
+            String(maxHeight);
+          const mhRange = maxHeightField.querySelector('input[type="range"]');
+          mhRange.value = String(Math.min(500, maxHeight));
+          updateSliderFill(mhRange);
+        } else {
+          maxHeight = readField('maxHeight');
         }
         return {
           count,
@@ -496,13 +1391,36 @@
           gap,
           maxHeight,
           peaks,
-          colorHex: colorText.value,
+          colorHex: readColorHex(),
+          opacity: readOpacityPct() / 100,
           seed: previewSeed,
         };
       }
 
       // ---------------- 预览渲染 ----------------
+      // 渲染拆成两层：
+      //   computeAmps —— 由 count/peaks/seed 算出振幅数组
+      //   paint       —— 把一组振幅按当前参数画到 canvas
+      // 点「换样式」时在旧振幅和新振幅之间逐条补间，波形平滑变形；
+      // 而拖滑块改参数依然是即时重绘——那里需要跟手，加补间会发粘。
+      const MORPH_MS = 520;
+      const MORPH_STAGGER = 0.35; // 总时长里留 35% 给逐条错位，形成从左扫到右的波浪
+      const prefersReducedMotion = window.matchMedia(
+        '(prefers-reduced-motion: reduce)'
+      );
+
       let renderPending = false;
+      let currentAmps = null; // 当前画面上的振幅，也是下次补间的起点
+      let morph = null; // { from, to, toKey, start }
+      let morphRAF = 0;
+
+      // 影响振幅的只有这三个参数，用它们做指纹判断补间目标是否过期
+      const ampsKey = (p) => `${p.count}|${p.peaks}|${p.seed}`;
+      const computeAmps = (count, peaks, seed) =>
+        buildAmplitudes(count, peaks, mulberry32(seed));
+      const clamp01 = (t) => (t < 0 ? 0 : t > 1 ? 1 : t);
+      const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
       function scheduleRender() {
         if (renderPending) return;
         renderPending = true;
@@ -512,8 +1430,75 @@
         });
       }
 
+      function cancelMorph() {
+        if (morphRAF) cancelAnimationFrame(morphRAF);
+        morphRAF = 0;
+        morph = null;
+      }
+
+      // 即时渲染：重算振幅直接画。
+      // 补间进行中且目标未变时让位给补间循环，避免把动画打断成跳帧。
       function renderPreview() {
         const params = currentParams();
+        if (morph) {
+          if (ampsKey(params) === morph.toKey) return;
+          cancelMorph(); // 振幅相关参数被改了，补间目标已过期
+        }
+        const amps = computeAmps(params.count, params.peaks, params.seed);
+        currentAmps = amps;
+        paint(amps, params);
+      }
+
+      // 换样式：从当前画面的振幅补间到新振幅
+      function startMorph() {
+        const params = currentParams();
+        const to = computeAmps(params.count, params.peaks, params.seed);
+        cancelMorph();
+        // 条数不同则逐条对应关系不成立；用户要求减少动效时也直接切换
+        if (
+          !currentAmps ||
+          currentAmps.length !== to.length ||
+          prefersReducedMotion.matches
+        ) {
+          currentAmps = to;
+          paint(to, params);
+          return;
+        }
+        morph = {
+          from: currentAmps,
+          to,
+          toKey: ampsKey(params),
+          start: performance.now(),
+        };
+        morphRAF = requestAnimationFrame(stepMorph);
+      }
+
+      function stepMorph(now) {
+        if (!morph) return;
+        const params = currentParams();
+        const t = clamp01((now - morph.start) / MORPH_MS);
+        const n = morph.to.length;
+        const span = 1 - MORPH_STAGGER;
+        const amps = new Array(n);
+        for (let i = 0; i < n; i++) {
+          // 每根条的起跑时间按索引顺延，越靠右越晚动，读起来像一阵风扫过
+          const delay = n > 1 ? (i / (n - 1)) * MORPH_STAGGER : 0;
+          const e = easeOutCubic(clamp01((t - delay) / span));
+          amps[i] = morph.from[i] + (morph.to[i] - morph.from[i]) * e;
+        }
+        currentAmps = amps;
+        paint(amps, params);
+        if (!morph) return; // paint 里可能因条数变化终止了补间
+        if (t < 1) {
+          morphRAF = requestAnimationFrame(stepMorph);
+        } else {
+          currentAmps = morph.to; // 收敛到精确终值，避免浮点残差
+          cancelMorph();
+        }
+      }
+
+      function paint(amps, params) {
+        params = params || currentParams();
         const dpr = window.devicePixelRatio || 1;
         const cssW = canvas.clientWidth;
         const cssH = canvas.clientHeight;
@@ -524,8 +1509,24 @@
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, cssW, cssH);
 
-        const { count, barWidth, gap, maxHeight, peaks, colorHex, seed } =
-          params;
+        const {
+          count,
+          barWidth,
+          gap,
+          maxHeight,
+          peaks,
+          colorHex,
+          opacity,
+          seed,
+        } = params;
+
+        // 补间期间条数被改，传入的振幅就对不上了：按当前参数重算并终止补间
+        if (!amps || amps.length !== count) {
+          cancelMorph();
+          amps = computeAmps(count, peaks, seed);
+          currentAmps = amps;
+        }
+
         const totalW = count * barWidth + Math.max(0, count - 1) * gap;
         if (totalW <= 0) return;
 
@@ -540,8 +1541,8 @@
         const offsetX = (cssW - drawW) / 2;
         const offsetY = (cssH - drawH) / 2;
 
-        const amps = buildAmplitudes(count, peaks, mulberry32(seed));
         ctx.fillStyle = colorHex;
+        ctx.globalAlpha = opacity;
         for (let i = 0; i < count; i++) {
           const h = Math.max(barWidth, amps[i] * maxHeight) * scale;
           const w = barWidth * scale;
@@ -553,6 +1554,7 @@
           else drawRoundRect(ctx, x, y, w, h, r);
           ctx.fill();
         }
+        ctx.globalAlpha = 1;
       }
 
       // 兼容不支持 roundRect 的旧环境。
@@ -571,8 +1573,6 @@
         parent.postMessage({ pluginMessage: message }, '*');
 
       document.getElementById('generate').addEventListener('click', () => {
-        const raw = seedEl.value.trim();
-        const seedNum = raw === '' ? null : Number(raw);
         const params = currentParams();
         send({
           type: 'generate',
@@ -582,13 +1582,10 @@
           maxHeight: params.maxHeight,
           peaks: params.peaks,
           colorHex: params.colorHex,
-          // 用户手输了 seed 就用手输，否则把当前 previewSeed 传给主进程，保证生成和预览一致。
-          seed: Number.isFinite(seedNum) ? seedNum : previewSeed,
+          opacity: params.opacity,
+          // 生成用的 seed 直接来自当前预览，保证生成结果和预览完全一致。
+          seed: previewSeed,
         });
-      });
-
-      document.getElementById('close').addEventListener('click', () => {
-        send({ type: 'close' });
       });
 
       // ---------------- 接收主进程消息 ----------------
@@ -597,45 +1594,79 @@
         if (!msg) return;
         if (msg.type === 'done') {
           document.getElementById('status').textContent =
-            `已生成 ${msg.count} 条 · seed = ${msg.seed}`;
-          seedEl.value = String(msg.seed);
-          seedLabel.textContent = String(msg.seed);
+            `已生成 ${msg.count} 条`;
+          // 与主进程回传的 seed 保持一致，下次点「换样式」就是从这里换。
           previewSeed = msg.seed >>> 0;
         } else if (msg.type === 'selection') {
           updateSelection(msg.node);
+        } else if (msg.type === 'restore') {
+          applySavedParams(msg.params);
         }
       };
+
+      // 把主进程回传的上次参数回填到输入框；未知或非法字段忽略，用当前默认值。
+      function applySavedParams(saved) {
+        if (!saved || typeof saved !== 'object') return;
+        const setField = (key, value) => {
+          const n = Number(value);
+          if (!Number.isFinite(n)) return;
+          const f = document.querySelector(`.field[data-key="${key}"]`);
+          if (!f) return;
+          const range = f.querySelector('input[type="range"]');
+          const num = f.querySelector('input[type="number"]');
+          const val = f.querySelector('.val');
+          const clamped = Math.min(
+            Number(num.max),
+            Math.max(Number(num.min), n)
+          );
+          num.value = String(clamped);
+          range.value = String(
+            Math.min(Number(range.max), Math.max(Number(range.min), clamped))
+          );
+          val.textContent = String(clamped);
+          updateSliderFill(range);
+        };
+        ['count', 'barWidth', 'gap', 'maxHeight', 'peaks'].forEach((k) => {
+          if (k in saved) setField(k, saved[k]);
+        });
+        if (Number.isFinite(Number(saved.opacity))) {
+          opacityInput.value = String(
+            Math.round(clampOpacityPct(Number(saved.opacity) * 100))
+          );
+        }
+        if (typeof saved.colorHex === 'string' && isHex(saved.colorHex)) {
+          setColorFromHex(norm(saved.colorHex));
+        } else {
+          syncColorUI({ skipText: true });
+        }
+        scheduleRender();
+      }
 
       function updateSelection(node) {
         selectedNode = node;
         if (node) {
-          selInfo.classList.remove('empty');
-          selInfo.querySelector('.name').textContent = node.name;
+          // 不显示节点名：名字长度不定会让这块区域宽高跳变，尺寸信息已经够用
           selInfo.querySelector('.meta').textContent =
             `${node.type} · ${node.width} × ${node.height}`;
-          adaptiveEl.disabled = false;
-          adaptiveToggle.classList.remove('disabled');
+          followSizeEl.disabled = false;
+          followSizeToggle.classList.remove('disabled');
         } else {
-          selInfo.classList.add('empty');
-          selInfo.querySelector('.name').textContent = '未选中任何节点';
           selInfo.querySelector('.meta').textContent =
-            '选中一个 Frame 后可跟随其宽度';
-          if (adaptive) {
-            adaptive = false;
-            adaptiveEl.checked = false;
-            countField.classList.remove('locked');
-            countField
-              .querySelectorAll('input')
-              .forEach((el) => (el.disabled = false));
+            '选中一个 Frame 后可跟随宽高';
+          if (followSize) {
+            followSize = false;
+            followSizeEl.checked = false;
+            setFollowLock(false);
           }
-          adaptiveEl.disabled = true;
-          adaptiveToggle.classList.add('disabled');
+          followSizeEl.disabled = true;
+          followSizeToggle.classList.add('disabled');
         }
         scheduleRender();
       }
 
       // ---------------- 初始 ----------------
-      seedEl.placeholder = String(previewSeed);
+      // 用 HTML 里 colorText 的默认值初始化 hsv，保证色块/面板/文本三者开局就一致。
+      setColorFromHex(isHex(colorText.value) ? readColorHex() : '#8C93B0');
       scheduleRender();
       window.addEventListener('resize', scheduleRender);
     </script>

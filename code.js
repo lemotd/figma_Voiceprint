@@ -2,11 +2,34 @@
 
 figma.showUI(__html__, { width: 320, height: 620 });
 
+// ---------- 参数持久化 ----------
+// 用 figma.clientStorage 跨会话记住上次生成时用的参数；seed 和自适应开关不存。
+// clientStorage 是异步 API，UI 打开时先渲染默认值，参数到达后再回填，会有一次很短的跳变。
+const STORAGE_KEY = 'voiceprint:lastParams';
+
+figma.clientStorage
+  .getAsync(STORAGE_KEY)
+  .then((saved) => {
+    if (saved && typeof saved === 'object') {
+      figma.ui.postMessage({ type: 'restore', params: saved });
+    }
+  })
+  .catch(() => {});
+
 figma.ui.onmessage = (msg) => {
   if (msg.type === 'generate') {
     generate(msg);
-  } else if (msg.type === 'close') {
-    figma.closePlugin();
+    figma.clientStorage
+      .setAsync(STORAGE_KEY, {
+        count: msg.count,
+        barWidth: msg.barWidth,
+        gap: msg.gap,
+        maxHeight: msg.maxHeight,
+        peaks: msg.peaks,
+        colorHex: msg.colorHex,
+        opacity: msg.opacity,
+      })
+      .catch(() => {});
   }
 };
 
@@ -40,7 +63,8 @@ function generate(params) {
   const gap = clampNum(params.gap, 0, 40, 4);
   const maxHeight = clampNum(params.maxHeight, 20, 1000, 200);
   const peaks = clampInt(params.peaks, 0, 20, 5);
-  const color = hexToRgb(params.colorHex || '#7B8CFF');
+  const color = hexToRgb(params.colorHex || '#8C93B0');
+  const opacity = clampNum(params.opacity, 0, 1, 0.4);
   const seed = Number.isFinite(params.seed)
     ? params.seed >>> 0
     : (Math.random() * 0xffffffff) >>> 0;
@@ -64,7 +88,7 @@ function generate(params) {
     rect.x = i * (barWidth + gap);
     rect.y = (maxHeight - h) / 2; // 中线对齐
     rect.cornerRadius = barWidth / 2; // 圆角自动 clamp 成药丸/圆点
-    rect.fills = [{ type: 'SOLID', color }];
+    rect.fills = [{ type: 'SOLID', color, opacity }];
     frame.appendChild(rect);
   }
 
@@ -152,7 +176,10 @@ function buildAmplitudes(count, peaks, rng) {
 // ---------- 工具 ----------
 function hexToRgb(hex) {
   const clean = String(hex).replace('#', '').trim();
-  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return { r: 0.48, g: 0.55, b: 1 };
+  if (!/^[0-9a-fA-F]{6}$/.test(clean)) {
+    // #8C93B0 fallback
+    return { r: 0.5490196, g: 0.5764706, b: 0.6901961 };
+  }
   return {
     r: parseInt(clean.slice(0, 2), 16) / 255,
     g: parseInt(clean.slice(2, 4), 16) / 255,
