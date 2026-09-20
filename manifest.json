@@ -1,10 +1,11 @@
 {
   "name": "Voiceprint",
-  "id": "voiceprint-local-dev",
+  "id": "1683401561074267461",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
-  "editorType": ["figma", "figjam"],
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
   "networkAccess": {
     "allowedDomains": ["none"]
   }
