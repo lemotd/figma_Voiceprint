@@ -789,14 +789,6 @@
           0 0 0 2px var(--miuix-surface),
           0 0 0 3.5px var(--miuix-primary);
       }
-
-      .status {
-        margin-top: 10px;
-        min-height: 14px;
-        color: var(--miuix-on-surface-tertiary);
-        font-size: 12px;
-        font-variant-numeric: tabular-nums;
-      }
     </style>
   </head>
   <body>
@@ -937,8 +929,6 @@
       <button class="action primary" id="generate">生成到画布</button>
     </div>
 
-    <div class="status" id="status"></div>
-
     <script>
       // ---------------- 与 code.js 保持一致的算法 ----------------
       // 修改这里的算法时，务必同步修改 code.js 里的 buildAmplitudes / mulberry32。
@@ -1019,7 +1009,9 @@
       // previewSeed 让预览稳定：拖动参数时波形形状不变，只有 count 或 seed 换才会明显变。
       let previewSeed = (Math.random() * 0xffffffff) >>> 0;
       let selectedNode = null;
-      // 跟随宽高：一个开关同时接管 count（由宽度反推）和 maxHeight（取高度）
+      // 跟随宽高：一个开关同时接管 count（由宽度反推）和 maxHeight（取高度）。
+      // 这个变量只表达"用户想不想跟随"，是否真的生效要再看有没有选中节点
+      // （见 currentParams 里的 followSize && selectedNode）。
       let followSize = false;
 
       // ---------------- DOM 引用 ----------------
@@ -1583,6 +1575,8 @@
           peaks: params.peaks,
           colorHex: params.colorHex,
           opacity: params.opacity,
+          // 存的是开关意图，不是本次有没有真的生效（没选中时不生效，但意图要留着）
+          followSize,
           // 生成用的 seed 直接来自当前预览，保证生成结果和预览完全一致。
           seed: previewSeed,
         });
@@ -1593,8 +1587,6 @@
         const msg = event.data.pluginMessage;
         if (!msg) return;
         if (msg.type === 'done') {
-          document.getElementById('status').textContent =
-            `已生成 ${msg.count} 条`;
           // 与主进程回传的 seed 保持一致，下次点「换样式」就是从这里换。
           previewSeed = msg.seed >>> 0;
         } else if (msg.type === 'selection') {
@@ -1639,30 +1631,55 @@
         } else {
           syncColorUI({ skipText: true });
         }
+        if (typeof saved.followSize === 'boolean') {
+          followSize = saved.followSize;
+          followSizeEl.checked = followSize;
+          // 只在当前确实有选中节点时才真正锁字段；否则意图留着，等选中再生效。
+          // disabled 交给 updateSelection 管，这里不碰，避免和选中态打架。
+          setFollowLock(followSize && !!selectedNode);
+        }
         scheduleRender();
       }
 
       function updateSelection(node) {
+        const prevId = selectedNode ? selectedNode.id : null;
+        const nextId = node ? node.id : null;
         selectedNode = node;
         if (node) {
           // 不显示节点名：名字长度不定会让这块区域宽高跳变，尺寸信息已经够用
           selInfo.querySelector('.meta').textContent =
             `${node.type} · ${node.width} × ${node.height}`;
-          followSizeEl.disabled = false;
-          followSizeToggle.classList.remove('disabled');
+          // 只有换了选中目标才动开关和锁定态。同一个节点被 resize 时主进程会持续推
+          // 新尺寸（拖动创建画板、拖手柄都会走到这里），那条高频路径上只更新
+          // 文案和预览，不反复写 disabled / classList。
+          if (nextId !== prevId) {
+            followSizeEl.disabled = false;
+            followSizeToggle.classList.remove('disabled');
+            // 意图一直留着，重新选中就立刻接管两个字段
+            setFollowLock(followSize);
+          }
         } else {
           selInfo.querySelector('.meta').textContent =
             '选中一个 Frame 后可跟随宽高';
-          if (followSize) {
-            followSize = false;
-            followSizeEl.checked = false;
-            setFollowLock(false);
-          }
+          // 只停用、不清零。followSize 是用户意图，必须跨"取消选中"和跨会话存活：
+          // 打开插件时 selection 消息必定早于 restore（pushSelection 同步、
+          // clientStorage 异步），在这里清零会把刚要恢复的记忆抹掉。
+          // 跟随此刻不生效，所以解锁两个字段供手动编辑。
+          setFollowLock(false);
           followSizeEl.disabled = true;
           followSizeToggle.classList.add('disabled');
         }
         scheduleRender();
       }
+
+      // ---------------- 选中尺寸兜底轮询 ----------------
+      // 主进程靠 page 的 nodechange 事件实时跟踪选中节点的宽高，但那类事件在某些
+      // 交互里会被合并或整批延迟。这里低频问一次，保证拖完画板最迟 SELECTION_POLL_MS
+      // 内面板一定对上真实尺寸。主进程侧有值去重，尺寸没变不会回消息。
+      // 定时器刻意放在这边：iframe 是真正的浏览器环境，setInterval 一定可用；
+      // 主进程沙箱对 timer 的支持官方文档里说法不一致。
+      const SELECTION_POLL_MS = 300;
+      setInterval(() => send({ type: 'pollSelection' }), SELECTION_POLL_MS);
 
       // ---------------- 初始 ----------------
       // 用 HTML 里 colorText 的默认值初始化 hsv，保证色块/面板/文本三者开局就一致。

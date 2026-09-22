@@ -3,7 +3,7 @@
 figma.showUI(__html__, { width: 320, height: 620 });
 
 // ---------- 参数持久化 ----------
-// 用 figma.clientStorage 跨会话记住上次生成时用的参数；seed 和自适应开关不存。
+// 用 figma.clientStorage 跨会话记住上次生成时用的参数，含"跟随宽高"开关；seed 不存。
 // clientStorage 是异步 API，UI 打开时先渲染默认值，参数到达后再回填，会有一次很短的跳变。
 const STORAGE_KEY = 'voiceprint:lastParams';
 
@@ -17,6 +17,12 @@ figma.clientStorage
   .catch(() => {});
 
 figma.ui.onmessage = (msg) => {
+  if (msg.type === 'pollSelection') {
+    // UI 侧定时问一次，作为 nodechange 的兜底。尺寸没变时 pushSelection 内部会跳过，
+    // 不会白发消息。
+    pushSelection();
+    return;
+  }
   if (msg.type === 'generate') {
     generate(msg);
     figma.clientStorage
@@ -28,33 +34,115 @@ figma.ui.onmessage = (msg) => {
         peaks: msg.peaks,
         colorHex: msg.colorHex,
         opacity: msg.opacity,
+        // 存成严格布尔：UI 漏传时会是 undefined，写进 storage 会让回填分支的
+        // typeof === 'boolean' 判断失效。
+        followSize: msg.followSize === true,
       })
       .catch(() => {});
   }
 };
 
 // ---------- 选中节点尺寸推送 ----------
-// UI 需要知道当前选中的画板宽度，用于"自适应条数"功能。
-// 打开面板时立刻推一次，之后每当选中变化再推。
-function pushSelection() {
-  const sel = figma.currentPage.selection[0];
-  if (sel && 'width' in sel && 'height' in sel) {
-    figma.ui.postMessage({
-      type: 'selection',
-      node: {
-        id: sel.id,
-        name: sel.name,
-        type: sel.type,
-        width: Math.round(sel.width),
-        height: Math.round(sel.height),
-      },
-    });
-  } else {
-    figma.ui.postMessage({ type: 'selection', node: null });
+// UI 需要知道当前选中节点的宽高，用于"跟随宽高"功能。
+// 只监听 selectionchange 是不够的：用 F 拖出一个新画板时，Figma 在拖动早期就把它
+// 设成了选中项，那一刻宽高还是起手的小尺寸；之后一路拖到松手，选中项从没变过，
+// selectionchange 不会再触发，面板就永远停在那个初始尺寸上。拖手柄改已有画板同理。
+// 所以尺寸变化要单独盯：
+//   1. 打开面板时同步推一次，面板开局就有值
+//   2. selectionchange —— 换了选中目标
+//   3. nodechange —— 选中目标自身尺寸被改（拖动创建、拖手柄 resize、改 W/H 输入框）
+//   4. UI 侧低频轮询发来的 pollSelection —— 兜底，防止 nodechange 在某些交互里
+//      被合并或整批漏发。轮询定时器放在 UI（iframe 是真正的浏览器环境，setInterval
+//      必定可用），主进程沙箱对 timer 的支持在官方文档里说法不一，不依赖它。
+
+// 上次推给 UI 的快照。resize 过程中事件很密，靠它去重，值没变就不发消息。
+let lastPushed = null;
+
+function readSelectionSize() {
+  try {
+    const sel = figma.currentPage.selection[0];
+    if (!sel) return null;
+    if (!('width' in sel) || !('height' in sel)) return null;
+    return {
+      id: sel.id,
+      name: sel.name,
+      type: sel.type,
+      width: Math.round(sel.width),
+      height: Math.round(sel.height),
+    };
+  } catch (e) {
+    // 节点在读取的瞬间被删掉了，属性访问会抛错，当作没有选中
+    return null;
   }
 }
-pushSelection();
-figma.on('selectionchange', pushSelection);
+
+function sameSnapshot(a, b) {
+  if (a === b) return true; // 含 null === null：无选中状态不必重复推
+  if (!a || !b) return false;
+  return a.id === b.id && a.width === b.width && a.height === b.height;
+}
+
+function pushSelection(force) {
+  const node = readSelectionSize();
+  if (!force && sameSnapshot(node, lastPushed)) return;
+  lastPushed = node;
+  figma.ui.postMessage({ type: 'selection', node });
+}
+
+// nodechange 是 page 级事件，在 documentAccess: dynamic-page 下可直接用当前页注册，
+// 不像 figma.on('documentchange') 那样要先 loadAllPagesAsync 把整个文档拉起来。
+// 刻意不按变化里的 node id 过滤：容器（GROUP / auto layout frame）的尺寸可能是被
+// 子节点撑开的，那种变化列表里并没有容器自己。pushSelection 内部已经去重，
+// 每次重读一遍宽高的成本可以忽略。
+function onNodeChange() {
+  pushSelection();
+}
+
+// currentPage 换了要把监听搬过去，否则新页面上的 resize 收不到。
+let boundPage = null;
+function bindNodeChange() {
+  if (boundPage === figma.currentPage) return;
+  if (boundPage) {
+    try {
+      boundPage.off('nodechange', onNodeChange);
+    } catch (e) {}
+  }
+  boundPage = figma.currentPage;
+  try {
+    boundPage.on('nodechange', onNodeChange);
+  } catch (e) {
+    boundPage = null; // 环境不支持 nodechange，退回纯轮询
+  }
+}
+
+pushSelection(true);
+bindNodeChange();
+figma.on('selectionchange', () => pushSelection());
+figma.on('currentpagechange', () => {
+  bindNodeChange();
+  pushSelection();
+});
+
+// ---------- 放置目标 ----------
+// 能直接收纳新子节点的容器类型。
+// 刻意排除两类：INSTANCE 内部禁止插入子节点；COMPONENT_SET 只接受 COMPONENT 子节点。
+// 选中它们时会继续往上找父级。
+const CONTAINER_TYPES = ['FRAME', 'COMPONENT', 'GROUP', 'SECTION'];
+// 这些容器建立自己的坐标系，子节点 x/y 相对容器左上角；
+// GROUP / SECTION / PAGE 不建立坐标系，子节点 x/y 仍在容器所处的坐标系里。
+const LOCAL_COORD_TYPES = ['FRAME', 'COMPONENT', 'COMPONENT_SET', 'INSTANCE'];
+
+// 从选中项出发向上找第一个可收纳的容器：
+// 选中画板 → 画板本身；选中画板里的某个图层 → 它所在的画板。
+// 没选中、或选中项直接躺在页面根级时返回 null，走"放到视口中心"的老路径。
+function resolveParent() {
+  let node = figma.currentPage.selection[0];
+  while (node && node.type !== 'PAGE' && node.type !== 'DOCUMENT') {
+    if (CONTAINER_TYPES.indexOf(node.type) !== -1) return node;
+    node = node.parent;
+  }
+  return null;
+}
 
 // ---------- 主流程 ----------
 function generate(params) {
@@ -92,14 +180,40 @@ function generate(params) {
     frame.appendChild(rect);
   }
 
-  // 放到当前视口中心，选中并对焦。
-  frame.x = Math.round(figma.viewport.center.x - totalWidth / 2);
-  frame.y = Math.round(figma.viewport.center.y - maxHeight / 2);
-  figma.currentPage.appendChild(frame);
+  // 有选中容器就放进去并居中，否则放到当前视口中心。
+  const parent = resolveParent();
+  if (parent) {
+    // 先快照父容器几何：GROUP 的 bounding box 会被新子节点撑大，
+    // append 之后再读 x/width 算出来的居中位置是错的。
+    const box = {
+      x: parent.x,
+      y: parent.y,
+      width: parent.width,
+      height: parent.height,
+    };
+    parent.appendChild(frame);
+    // appendChild 之后才设坐标：入栈时 x/y 数值不变，但解释它的坐标系换了，
+    // 先设会被重新解释成另一个位置。
+    const autoLayout = 'layoutMode' in parent && parent.layoutMode !== 'NONE';
+    if (!autoLayout) {
+      // auto layout 容器的子节点位置由布局接管，设 x/y 无效，交给 Figma 自己排。
+      const local = LOCAL_COORD_TYPES.indexOf(parent.type) !== -1;
+      const ox = local ? 0 : box.x;
+      const oy = local ? 0 : box.y;
+      frame.x = Math.round(ox + (box.width - totalWidth) / 2);
+      frame.y = Math.round(oy + (box.height - maxHeight) / 2);
+    }
+    // 不动视口：用户刚选中这个容器，通常就在眼前，强行缩放到一根细长条反而打断操作。
+  } else {
+    frame.x = Math.round(figma.viewport.center.x - totalWidth / 2);
+    frame.y = Math.round(figma.viewport.center.y - maxHeight / 2);
+    figma.currentPage.appendChild(frame);
+    figma.viewport.scrollAndZoomIntoView([frame]);
+  }
   figma.currentPage.selection = [frame];
-  figma.viewport.scrollAndZoomIntoView([frame]);
 
-  figma.ui.postMessage({ type: 'done', seed, count });
+  // 回传 seed，让面板的预览种子和本次生成结果保持一致。
+  figma.ui.postMessage({ type: 'done', seed });
 }
 
 // ---------- 振幅算法 ----------
